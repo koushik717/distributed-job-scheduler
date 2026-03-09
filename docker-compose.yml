@@ -1,0 +1,123 @@
+version: '3.9'
+
+x-common-env: &common-env
+  DATABASE_URL: postgres://scheduler:scheduler_pass@postgres:5432/scheduler_db
+  REDIS_URL: redis://redis:6379/0
+  DJANGO_SETTINGS_MODULE: scheduler.settings
+  CELERY_BROKER_URL: redis://redis:6379/0
+  CELERY_RESULT_BACKEND: redis://redis:6379/1
+
+services:
+  # ─── Data Stores ──────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: scheduler_db
+      POSTGRES_USER: scheduler
+      POSTGRES_PASSWORD: scheduler_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U scheduler -d scheduler_db" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ─── Django Web Server ────────────────────────────────────
+  web:
+    build: .
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput 2>/dev/null;
+             gunicorn scheduler.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120"
+    ports:
+      - "8000:8000"
+    environment:
+      <<: *common-env
+      DEBUG: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+
+  # ─── Celery Workers (Horizontal Scaling) ──────────────────
+  celery_worker_1:
+    build: .
+    command: celery -A scheduler worker -l info -n worker1@%h -Q high_priority,default,low_priority -c 4
+    environment:
+      <<: *common-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+
+  celery_worker_2:
+    build: .
+    command: celery -A scheduler worker -l info -n worker2@%h -Q default,low_priority -c 4
+    environment:
+      <<: *common-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+
+  celery_worker_3:
+    build: .
+    command: celery -A scheduler worker -l info -n worker3@%h -Q low_priority -c 2
+    environment:
+      <<: *common-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+
+  # ─── Celery Beat (Periodic Tasks) ─────────────────────────
+  celery_beat:
+    build: .
+    command: celery -A scheduler beat -l info --schedule /tmp/celerybeat-schedule
+    environment:
+      <<: *common-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+
+  # ─── Prometheus ────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    depends_on:
+      - web
+
+volumes:
+  pgdata:
