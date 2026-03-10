@@ -1,5 +1,3 @@
-version: '3.9'
-
 x-common-env: &common-env
   DATABASE_URL: postgres://scheduler:scheduler_pass@postgres:5432/scheduler_db
   REDIS_URL: redis://redis:6379/0
@@ -16,7 +14,7 @@ services:
       POSTGRES_USER: scheduler
       POSTGRES_PASSWORD: scheduler_pass
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:

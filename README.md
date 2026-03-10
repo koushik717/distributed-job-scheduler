@@ -2,36 +2,18 @@
 
 A production-grade background processing system built with Django, Celery, Redis, and PostgreSQL. Demonstrates real-world patterns: priority queues, exponential backoff retries, dead letter queues, idempotency, observability, and horizontal worker scaling.
 
-## Architecture
+## Performance
+- **17,200 jobs/min** throughput under load (50 concurrent threads)
+- **282.5ms p95** API latency
+- **99.4% success rate** across 10,000 jobs
+- **3 Celery workers** processing in parallel across priority queues
 
-```
-                 ┌────────────────────┐
-                 │     REST API       │
-                 │  (Django + DRF)    │
-                 └─────────┬──────────┘
-                           │
-                     Create Job
-                           │
-                    ┌──────▼──────┐
-                    │ PostgreSQL  │   ← Source of Truth
-                    │ (Job Store) │
-                    └──────┬──────┘
-                           │
-                    Enqueue Task
-                           │
-                    ┌──────▼──────┐
-                    │   Redis     │   ← Transport Only
-                    │  (Broker)   │
-                    └──────┬──────┘
-                           │
-            ┌──────────────┼──────────────┐
-            │              │              │
-      ┌─────▼─────┐  ┌─────▼─────┐  ┌────▼─────┐
-      │ Worker #1 │  │ Worker #2 │  │ Worker #3│
-      │ high+def  │  │ def+low   │  │ low only │
-      │ +low      │  │           │  │          │
-      └───────────┘  └───────────┘  └──────────┘
-```
+## Architecture
+PostgreSQL (source of truth) → Django REST API → Redis (broker) → Celery Workers (×3)
+                                                                        ↓
+                                                              Celery Beat (scheduler)
+                                                              Prometheus (metrics)
+
 
 ### Key Design Decisions
 
