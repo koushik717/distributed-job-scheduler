@@ -74,7 +74,7 @@ DATABASE_URL = os.environ.get(
 # Parse DATABASE_URL
 import re
 db_match = re.match(
-    r'postgres://(?P<user>[^:]+):(?P<password>[^@]+)@(?P<host>[^:]+):(?P<port>\d+)/(?P<name>.+)',
+    r'postgres(?:ql)?://(?P<user>[^:]+):(?P<password>[^@]+)@(?P<host>[^:]+):(?P<port>\d+)/(?P<name>.+)',
     DATABASE_URL
 )
 
