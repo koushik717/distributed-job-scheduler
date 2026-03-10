@@ -4,7 +4,7 @@ import Charts from './components/Charts'
 import QueueDepth from './components/QueueDepth'
 import JobsTable from './components/JobsTable'
 
-const API_BASE = '/api'
+const API_BASE = import.meta.env.VITE_API_URL || '/api'
 
 export default function App() {
     const [stats, setStats] = useState(null)
