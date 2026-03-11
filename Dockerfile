@@ -32,7 +32,7 @@ COPY . .
 COPY --from=frontend-builder /app/dashboard/dist /app/dashboard/dist
 
 # Collect static files
-RUN python manage.py collectstatic --noinput 2>/dev/null || true
+RUN python manage.py collectstatic --noinput
 
 EXPOSE 8000
 
