@@ -1,3 +1,12 @@
+# Stage 1: Build React Frontend
+FROM node:18-alpine AS frontend-builder
+WORKDIR /app/dashboard
+COPY dashboard/package*.json ./
+RUN npm install --no-audit
+COPY dashboard/ .
+RUN npm run build
+
+# Stage 2: Build Python Backend
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -16,8 +25,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy project
+# Copy Python project
 COPY . .
+
+# Copy built React assets from Stage 1
+COPY --from=frontend-builder /app/dashboard/dist /app/dashboard/dist
 
 # Collect static files
 RUN python manage.py collectstatic --noinput 2>/dev/null || true
