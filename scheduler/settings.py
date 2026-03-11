@@ -197,7 +197,7 @@ LOGGING = {
 }
 
 # ─── Static Files ────────────────────────────────────────────
-STATIC_URL = 'static/'
+STATIC_URL = '/assets/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [
     BASE_DIR / 'dashboard' / 'dist',
